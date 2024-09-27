@@ -90,17 +90,29 @@ export class Visual implements IVisual {
             links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText });
         });
 
-        this.drawNetwork(nodes, links);
+        this.drawNetwork(nodes, links, 100, -200);
     }
 
 
-    private drawNetwork(nodes: NodeDatum[], links: LinkDatum[]) {
+    private drawNetwork(nodes: NodeDatum[], links: LinkDatum[], linkDistance: number, chargeStrength: number) {
         this.container.selectAll('*').remove();
 
-        // Modifica le forze per aumentare la distanza tra i nodi
+        // Aggiungi un marker per le frecce
+        this.svg.append('defs').append('marker')
+            .attr('id', 'arrowhead')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 10) // posizione dell'origine della freccia
+            .attr('refY', 5) // allineamento verticale della freccia
+            .attr('orient', 'auto')
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .append('polygon')
+            .attr('points', '0 0, 10 5, 0 10') // crea la forma della freccia
+            .attr('fill', '#999'); // colore della freccia
+
         const simulation = d3.forceSimulation<NodeDatum>(nodes)
-            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(100)) // Aumenta la distanza dei link
-            .force('charge', d3.forceManyBody().strength(-200)) // Aumenta la forza di carica per maggiore separazione
+            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(linkDistance))
+            .force('charge', d3.forceManyBody().strength(chargeStrength))
             .force('center', d3.forceCenter(this.width / 2, this.height / 2));
 
         const link = this.container.append('g')
@@ -109,7 +121,8 @@ export class Visual implements IVisual {
             .enter().append('line')
             .attr('stroke', '#999')
             .attr('stroke-opacity', 0.6)
-            .attr('stroke-width', 2);
+            .attr('stroke-width', 2)
+            .attr('marker-end', 'url(#arrowhead)'); // Usa il marker per le frecce
 
         const node = this.container.append('g')
             .selectAll('g')
@@ -132,23 +145,6 @@ export class Visual implements IVisual {
             .attr('font-size', d => Math.min(d.size / 2, 12)) // Regola la dimensione del testo in base alla dimensione del cerchio
             .text(d => d.id);
 
-        const linkText = this.container.append('g')
-            .selectAll('text')
-            .data(links)
-            .enter().append('text')
-            .attr('font-size', '10px')
-            .attr('text-anchor', 'middle')
-            .text(d => d.text);
-
-        const nodeText = this.container.append('g')
-            .selectAll('text')
-            .data(nodes)
-            .enter().append('text')
-            .attr('font-size', '10px')
-            .attr('dx', 12)
-            .attr('dy', 4)
-            .text(d => d.id);
-
         simulation.on('tick', () => {
             link
                 .attr('x1', d => (d.source as NodeDatum).x)
@@ -158,14 +154,6 @@ export class Visual implements IVisual {
 
             node
                 .attr('transform', d => `translate(${d.x}, ${d.y})`); // Posiziona il gruppo del nodo
-
-            linkText
-                .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
-                .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2);
-
-            nodeText
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
         });
 
         function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
