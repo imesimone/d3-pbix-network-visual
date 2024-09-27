@@ -29,19 +29,6 @@ export class Visual implements IVisual {
             .append('svg')
             .classed('network-graph', true);
         this.container = this.svg.append('g');
-
-        // Definire la freccia come marker
-        this.svg.append("defs").append("marker")
-            .attr("id", "arrow")
-            .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 10)
-            .attr("refY", 0)
-            .attr("markerWidth", 6)
-            .attr("markerHeight", 6)
-            .attr("orient", "auto")
-            .append("path")
-            .attr("d", "M0,-5L10,0L0,5")
-            .attr("fill", "#999");
     }
 
     public update(options: VisualUpdateOptions) {
@@ -62,26 +49,40 @@ export class Visual implements IVisual {
             const source = row[0].toString();
             const target = row[1].toString();
             const linkText = row[2] ? row[2].toString() : '';
-            const nodeColor = row[3] ? row[3].toString() : '#1E88E5';
-            const nodeSizeStr = row[4] ? row[4].toString() : 'M'; // Manteniamo nodeSize come stringa
 
-            // Variabile separata per mappare la stringa a un numero
-            let nodeSize: number;
-            switch (nodeSizeStr) {
-                case 'P': nodeSize = 5; break;
-                case 'M': nodeSize = 10; break;
-                case 'G': nodeSize = 15; break;
-                case 'MG': nodeSize = 20; break;
-                default: nodeSize = 10; break;
+            // Colonna separata per il colore e la dimensione (peso) dei nodi
+            const sourceNodeColor = row[3] ? row[3].toString() : '#1E88E5';  // Colore del nodo sorgente
+            const sourceNodeSizeStr = row[4] ? row[4].toString() : 'M';      // Dimensione del nodo sorgente
+            const targetNodeColor = row[5] ? row[5].toString() : '#1E88E5';  // Colore del nodo target
+            const targetNodeSizeStr = row[6] ? row[6].toString() : 'M';      // Dimensione del nodo target
+
+            let sourceNodeSize: number;
+            let targetNodeSize: number;
+
+            // Conversione delle dimensioni in numeri
+            switch (sourceNodeSizeStr) {
+                case 'P': sourceNodeSize = 5; break;
+                case 'M': sourceNodeSize = 10; break;
+                case 'G': sourceNodeSize = 15; break;
+                case 'MG': sourceNodeSize = 20; break;
+                default: sourceNodeSize = 10; break;
+            }
+
+            switch (targetNodeSizeStr) {
+                case 'P': targetNodeSize = 5; break;
+                case 'M': targetNodeSize = 10; break;
+                case 'G': targetNodeSize = 15; break;
+                case 'MG': targetNodeSize = 20; break;
+                default: targetNodeSize = 10; break;
             }
 
             if (!nodeMap.has(source)) {
-                const sourceNode: NodeDatum = { id: source, color: nodeColor, size: nodeSize };
+                const sourceNode: NodeDatum = { id: source, color: sourceNodeColor, size: sourceNodeSize };
                 nodeMap.set(source, sourceNode);
                 nodes.push(sourceNode);
             }
             if (!nodeMap.has(target)) {
-                const targetNode: NodeDatum = { id: target, color: nodeColor, size: nodeSize };
+                const targetNode: NodeDatum = { id: target, color: targetNodeColor, size: targetNodeSize };
                 nodeMap.set(target, targetNode);
                 nodes.push(targetNode);
             }
@@ -91,6 +92,7 @@ export class Visual implements IVisual {
 
         this.drawNetwork(nodes, links);
     }
+
 
     private drawNetwork(nodes: NodeDatum[], links: LinkDatum[]) {
         this.container.selectAll('*').remove();
@@ -106,8 +108,7 @@ export class Visual implements IVisual {
             .enter().append('line')
             .attr('stroke', '#999')
             .attr('stroke-opacity', 0.6)
-            .attr('stroke-width', 2)
-            .attr("marker-end", "url(#arrow)"); // Aggiungi freccia alla fine della linea
+            .attr('stroke-width', 2);
 
         const node = this.container.append('g')
             .selectAll('circle')
@@ -148,17 +149,9 @@ export class Visual implements IVisual {
                 .attr('cx', d => d.x)
                 .attr('cy', d => d.y);
 
-            // Allineamento del testo alle frecce
             linkText
                 .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
-                .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2)
-                .attr('transform', d => {
-                    const angle = Math.atan2(
-                        (d.target as NodeDatum).y - (d.source as NodeDatum).y,
-                        (d.target as NodeDatum).x - (d.source as NodeDatum).x
-                    ) * 180 / Math.PI;
-                    return `rotate(${angle}, ${((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2}, ${((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2})`;
-                });
+                .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2);
 
             nodeText
                 .attr('x', d => d.x)
