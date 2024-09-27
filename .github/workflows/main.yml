@@ -1,0 +1,35 @@
+name: Build and Package Power BI Visual
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Permette l'avvio manuale della pipeline
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Puoi cambiare la versione di Node.js se necessario
+
+      - name: Install Power BI Visuals Tools
+        run: npm install -g powerbi-visuals-tools
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package the Power BI Visual
+        run: pbiviz package
+
+      - name: Upload .pbiviz artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: powerbi-visual-package
+          path: dist/*.pbiviz
