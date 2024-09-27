@@ -87,7 +87,7 @@ export class Visual implements IVisual {
                 nodes.push(targetNode);
             }
 
-            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText + sourceNodeColor + targetNodeColor });
+            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText });
         });
 
         this.drawNetwork(nodes, links, 100, -200);

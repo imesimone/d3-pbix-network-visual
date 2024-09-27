@@ -71,24 +71,30 @@
       }
     },
     "forceSettings": {
-      "displayName": "Forza",
+      "displayName": "Impostazioni Forza",
+      "description": "Impostazioni relative alla forza del grafico",
       "properties": {
         "strength": {
           "displayName": "Forza",
+          "description": "Imposta la forza delle connessioni",
           "type": {
             "numeric": true
-          }
+          },
+          "placeHolderText": "Inserisci un valore per la forza"
         }
       }
     },
     "distanceSettings": {
-      "displayName": "Distanza",
+      "displayName": "Impostazioni Distanza",
+      "description": "Impostazioni relative alla distanza nel grafico",
       "properties": {
         "distance": {
           "displayName": "Distanza",
+          "description": "Imposta la distanza tra i nodi",
           "type": {
             "numeric": true
-          }
+          },
+          "placeHolderText": "Inserisci un valore per la distanza"
         }
       }
     }
