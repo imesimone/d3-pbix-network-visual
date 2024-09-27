@@ -101,14 +101,14 @@ export class Visual implements IVisual {
         this.svg.append('defs').append('marker')
             .attr('id', 'arrowhead')
             .attr('viewBox', '0 0 10 10')
-            .attr('refX', 10) // posizione dell'origine della freccia
-            .attr('refY', 5) // allineamento verticale della freccia
+            .attr('refX', 10)
+            .attr('refY', 5)
             .attr('orient', 'auto')
             .attr('markerWidth', 6)
             .attr('markerHeight', 6)
             .append('polygon')
-            .attr('points', '0 0, 10 5, 0 10') // crea la forma della freccia
-            .attr('fill', '#999'); // colore della freccia
+            .attr('points', '0 0, 10 5, 0 10')
+            .attr('fill', '#999');
 
         const simulation = d3.forceSimulation<NodeDatum>(nodes)
             .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(linkDistance))
@@ -122,39 +122,73 @@ export class Visual implements IVisual {
             .attr('stroke', '#999')
             .attr('stroke-opacity', 0.6)
             .attr('stroke-width', 2)
-            .attr('marker-end', 'url(#arrowhead)'); // Usa il marker per le frecce
+            .attr('marker-end', 'url(#arrowhead)');
 
-        const node = this.container.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .enter().append('g')  // Crea un gruppo per ciascun nodo
-            .call(d3.drag<SVGGElement, NodeDatum>()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
+        const node = this.container.append('g').selectAll('g')
+            .data(nodes).enter().append('g')
+            .call(d3.drag<SVGGElement, NodeDatum>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
 
-        // Aggiunge un cerchio per il nodo
-        node.append('circle')
-            .attr('r', d => d.size)
-            .attr('fill', d => d.color);
+        // Aggiungiamo un fattore di scala per ingrandire i nodi
+        const scaleFactor = 2; // Incrementa la dimensione del nodo, puoi regolare il valore
+        node.append('circle').attr('r', d => d.size * scaleFactor)  // Ingrandisci i nodi mantenendo la proporzionalità.attr('fill', d => d.color);
 
-        // Aggiunge il testo centrato nel cerchio
-        node.append('text')
+        // Aggiunge il testo centrato nel cerchio con contrasto automatico
+        node.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12)).attr('fill', d => getContrastColor(d.color)).text(d => d.id);
+        // Calcola il contrasto migliore tra bianco e nero
+        function getContrastColor(hexColor: string): string {
+            // Converti il colore esadecimale in RGB
+            const rgb = parseInt(hexColor.substring(1), 16); // Rimuove il # e converte in numerico
+            const r = (rgb >> 16) & 0xff;
+            const g = (rgb >> 8) & 0xff;
+            const b = rgb & 0xff;
+            // Calcola la luminosità percepita
+            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+            // Se la luminosità è alta, usa il nero come colore del testo, altrimenti bianco
+            return luminance > 128 ? '#000000' : '#ffffff';
+        }
+
+        // Aggiunge il testo per i link
+        const linkText = this.container.append('g')
+            .selectAll('text')
+            .data(links)
+            .enter().append('text')
+            .attr('font-size', '10px')
             .attr('text-anchor', 'middle')
-            .attr('dominant-baseline', 'middle') // Centra verticalmente il testo
-            .attr('font-size', d => Math.min(d.size / 2, 12)) // Regola la dimensione del testo in base alla dimensione del cerchio
-            .text(d => d.id);
+            .text(d => d.text);
 
         simulation.on('tick', () => {
             link
-                .attr('x1', d => (d.source as NodeDatum).x)
-                .attr('y1', d => (d.source as NodeDatum).y)
-                .attr('x2', d => (d.target as NodeDatum).x)
-                .attr('y2', d => (d.target as NodeDatum).y);
+                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true))  // Adjusted x1
+                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false)) // Adjusted y1
+                .attr('x2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, true))  // Adjusted x2
+                .attr('y2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, false)); // Adjusted y2
 
             node
-                .attr('transform', d => `translate(${d.x}, ${d.y})`); // Posiziona il gruppo del nodo
+                .attr('transform', d => `translate(${d.x}, ${d.y})`);
+
+            // Allinea il testo dei link
+            linkText
+                .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
+                .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2)
+                .attr('dy', -5) // Sposta il testo un po' sopra la linea
+                .attr('transform', d => {
+                    const x1 = (d.source as NodeDatum).x;
+                    const y1 = (d.source as NodeDatum).y;
+                    const x2 = (d.target as NodeDatum).x;
+                    const y2 = (d.target as NodeDatum).y;
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI; // Calcola l'angolo in gradi
+                    return `rotate(${angle}, ${((x1 + x2) / 2)}, ${((y1 + y2) / 2)})`; // Ruota il testo per allinearlo
+                });
         });
+
+        // Funzione per evitare che la freccia finisca dentro il cerchio
+        function adjustLinkEnd(source: NodeDatum, target: NodeDatum, isX: boolean): number {
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const ratio = (distance - (source.size * scaleFactor)) / distance;  // Adjust the link based on the node size
+            return isX ? source.x + dx * ratio : source.y + dy * ratio;
+        }
 
         function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
