@@ -97,9 +97,10 @@ export class Visual implements IVisual {
     private drawNetwork(nodes: NodeDatum[], links: LinkDatum[]) {
         this.container.selectAll('*').remove();
 
+        // Modifica le forze per aumentare la distanza tra i nodi
         const simulation = d3.forceSimulation<NodeDatum>(nodes)
-            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id))
-            .force('charge', d3.forceManyBody().strength(-100))
+            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(100)) // Aumenta la distanza dei link
+            .force('charge', d3.forceManyBody().strength(-200)) // Aumenta la forza di carica per maggiore separazione
             .force('center', d3.forceCenter(this.width / 2, this.height / 2));
 
         const link = this.container.append('g')
@@ -111,15 +112,25 @@ export class Visual implements IVisual {
             .attr('stroke-width', 2);
 
         const node = this.container.append('g')
-            .selectAll('circle')
+            .selectAll('g')
             .data(nodes)
-            .enter().append('circle')
-            .attr('r', d => d.size)
-            .attr('fill', d => d.color)
-            .call(d3.drag<SVGCircleElement, NodeDatum>()
+            .enter().append('g')  // Crea un gruppo per ciascun nodo
+            .call(d3.drag<SVGGElement, NodeDatum>()
                 .on('start', dragstarted)
                 .on('drag', dragged)
                 .on('end', dragended));
+
+        // Aggiunge un cerchio per il nodo
+        node.append('circle')
+            .attr('r', d => d.size)
+            .attr('fill', d => d.color);
+
+        // Aggiunge il testo centrato nel cerchio
+        node.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle') // Centra verticalmente il testo
+            .attr('font-size', d => Math.min(d.size / 2, 12)) // Regola la dimensione del testo in base alla dimensione del cerchio
+            .text(d => d.id);
 
         const linkText = this.container.append('g')
             .selectAll('text')
@@ -146,8 +157,7 @@ export class Visual implements IVisual {
                 .attr('y2', d => (d.target as NodeDatum).y);
 
             node
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
+                .attr('transform', d => `translate(${d.x}, ${d.y})`); // Posiziona il gruppo del nodo
 
             linkText
                 .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
@@ -158,18 +168,18 @@ export class Visual implements IVisual {
                 .attr('y', d => d.y);
         });
 
-        function dragstarted(event: d3.D3DragEvent<SVGCircleElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
         }
 
-        function dragged(event: d3.D3DragEvent<SVGCircleElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        function dragged(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
             d.fx = event.x;
             d.fy = event.y;
         }
 
-        function dragended(event: d3.D3DragEvent<SVGCircleElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        function dragended(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
