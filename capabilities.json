@@ -1,74 +1,75 @@
 {
-    "dataRoles": [
-      {
-        "displayName": "Source",
-        "name": "source",
-        "kind": "Grouping"
-      },
-      {
-        "displayName": "Target",
-        "name": "target",
-        "kind": "Grouping"
-      },
-      {
-        "displayName": "Link Text",
-        "name": "linkText",
-        "kind": "Measure"
-      },
-      {
-        "displayName": "Source Color",
-        "name": "sourceColor",
-        "kind": "Measure"
-      },
-      {
-        "displayName": "Source Size",
-        "name": "sourceSize",
-        "kind": "Measure"
-      },
-      {
-        "displayName": "Target Color",
-        "name": "targetColor",
-        "kind": "Measure"
-      },
-      {
-        "displayName": "Target Size",
-        "name": "targetSize",
-        "kind": "Measure"
-      }
-    ],
-    "dataViewMappings": [
-      {
-        "table": {
-          "rows": {
-            "select": [
-              { "for": { "in": "source" } },
-              { "for": { "in": "target" } },
-              { "for": { "in": "linkText" } },
-              { "for": { "in": "sourceColor" } },
-              { "for": { "in": "sourceSize" } },
-              { "for": { "in": "targetColor" } },
-              { "for": { "in": "targetSize" } }
-            ]
+  "dataRoles": [
+    {
+      "displayName": "Source",
+      "name": "source",
+      "kind": "Grouping"
+    },
+    {
+      "displayName": "Target",
+      "name": "target",
+      "kind": "Grouping"
+    },
+    {
+      "displayName": "Link Text",
+      "name": "linkText",
+      "kind": "Measure"
+    },
+    {
+      "displayName": "Source Color",
+      "name": "sourceColor",
+      "kind": "Measure"
+    },
+    {
+      "displayName": "Source Size",
+      "name": "sourceSize",
+      "kind": "Measure"
+    },
+    {
+      "displayName": "Target Color",
+      "name": "targetColor",
+      "kind": "Measure"
+    },
+    {
+      "displayName": "Target Size",
+      "name": "targetSize",
+      "kind": "Measure"
+    }
+  ],
+  "objects": {
+    "networkSettings": {
+      "displayName": "Network Settings",
+      "properties": {
+        "linkDistance": {
+          "displayName": "Link Distance",
+          "type": {
+            "numeric": true
           }
-        }
-      }
-    ],
-    "privileges": [
-      {
-        "name": "WebAccess",
-        "essential": true
-      }
-    ],
-    "objects": {
-      "general": {
-        "displayName": "General",
-        "properties": {
-          "filter": {
-            "type": {
-              "filter": true
-            }
+        },
+        "chargeStrength": {
+          "displayName": "Charge Strength",
+          "type": {
+            "numeric": true
           }
         }
       }
     }
-  }
+  },
+  "dataViewMappings": [
+    {
+      "table": {
+        "rows": {
+          "select": [
+            { "for": { "in": "source" } },
+            { "for": { "in": "target" } },
+            { "for": { "in": "linkText" } },
+            { "for": { "in": "sourceColor" } },
+            { "for": { "in": "sourceSize" } },
+            { "for": { "in": "targetColor" } },
+            { "for": { "in": "targetSize" } }
+          ]
+        }
+      }
+    }
+  ]
+}

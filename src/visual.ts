@@ -1,10 +1,10 @@
 import "./../style/visual.less";
 import powerbi from "powerbi-visuals-api";
+import * as d3 from "d3";
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 import DataView = powerbi.DataView;
-import * as d3 from "d3";
 
 interface NodeDatum extends d3.SimulationNodeDatum {
     id: string;
@@ -16,12 +16,19 @@ interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
     text: string;
 }
 
+interface NetworkSettings {
+    linkDistance: number;
+    chargeStrength: number;
+}
+
 export class Visual implements IVisual {
     private host: powerbi.extensibility.visual.IVisualHost;
     private svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
     private container: d3.Selection<SVGGElement, unknown, null, undefined>;
     private width: number;
     private height: number;
+    private settings: NetworkSettings;
+    private simulation: d3.Simulation<NodeDatum, LinkDatum>;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
@@ -29,6 +36,10 @@ export class Visual implements IVisual {
             .append('svg')
             .classed('network-graph', true);
         this.container = this.svg.append('g');
+        this.settings = {
+            linkDistance: 100,
+            chargeStrength: -200
+        };
     }
 
     public update(options: VisualUpdateOptions) {
@@ -41,6 +52,9 @@ export class Visual implements IVisual {
         this.height = options.viewport.height;
         this.svg.attr('width', this.width).attr('height', this.height);
 
+        // Update settings from dataView
+        this.updateSettings(dataView);
+
         const nodes: NodeDatum[] = [];
         const links: LinkDatum[] = [];
         const nodeMap = new Map<string, NodeDatum>();
@@ -49,17 +63,14 @@ export class Visual implements IVisual {
             const source = row[0].toString();
             const target = row[1].toString();
             const linkText = row[2] ? row[2].toString() : '';
-
-            // Colonna separata per il colore e la dimensione (peso) dei nodi
-            const sourceNodeColor = row[3] ? row[3].toString() : '#1E88E5';  // Colore del nodo sorgente
-            const sourceNodeSizeStr = row[4] ? row[4].toString() : 'M';      // Dimensione del nodo sorgente
-            const targetNodeColor = row[5] ? row[5].toString() : '#1E88E5';  // Colore del nodo target
-            const targetNodeSizeStr = row[6] ? row[6].toString() : 'M';      // Dimensione del nodo target
+            const sourceNodeColor = row[3] ? row[3].toString() : '#1E88E5';
+            const sourceNodeSizeStr = row[4] ? row[4].toString() : 'M';
+            const targetNodeColor = row[5] ? row[5].toString() : '#1E88E5';
+            const targetNodeSizeStr = row[6] ? row[6].toString() : 'M';
 
             let sourceNodeSize: number;
             let targetNodeSize: number;
 
-            // Conversione delle dimensioni in numeri
             switch (sourceNodeSizeStr) {
                 case 'P': sourceNodeSize = 5; break;
                 case 'M': sourceNodeSize = 10; break;
@@ -87,29 +98,34 @@ export class Visual implements IVisual {
                 nodes.push(targetNode);
             }
 
-            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText + sourceNodeColor + targetNodeColor });
+            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText });
         });
 
-        this.drawNetwork(nodes, links, 100, -200);
+        this.drawNetwork(nodes, links);
     }
 
-    // Calcola il contrasto migliore tra bianco e nero
+    private updateSettings(dataView: DataView) {
+        if (dataView.metadata && dataView.metadata.objects) {
+            const networkSettings = dataView.metadata.objects['networkSettings'];
+            if (networkSettings) {
+                this.settings.linkDistance = networkSettings['linkDistance'] as number ?? this.settings.linkDistance;
+                this.settings.chargeStrength = networkSettings['chargeStrength'] as number ?? this.settings.chargeStrength;
+            }
+        }
+    }
+
     private getContrastColor(hexColor: string): string {
-        // Converti il colore esadecimale in RGB
-        const rgb = parseInt(hexColor.substring(1), 16); // Rimuove il # e converte in numerico
+        const rgb = parseInt(hexColor.substring(1), 16);
         const r = (rgb >> 16) & 0xff;
         const g = (rgb >> 8) & 0xff;
         const b = rgb & 0xff;
-        // Calcola la luminosità percepita
         const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-        // Se la luminosità è alta, usa il nero come colore del testo, altrimenti bianco
         return luminance > 128 ? '#000000' : '#ffffff';
     }
 
-    private drawNetwork(nodes: NodeDatum[], links: LinkDatum[], linkDistance: number, chargeStrength: number) {
+    private drawNetwork(nodes: NodeDatum[], links: LinkDatum[]) {
         this.container.selectAll('*').remove();
 
-        // Aggiungi un marker per le frecce
         this.svg.append('defs').append('marker')
             .attr('id', 'arrowhead')
             .attr('viewBox', '0 0 10 10')
@@ -122,9 +138,9 @@ export class Visual implements IVisual {
             .attr('points', '0 0, 10 5, 0 10')
             .attr('fill', '#999');
 
-        const simulation = d3.forceSimulation<NodeDatum>(nodes)
-            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(linkDistance))
-            .force('charge', d3.forceManyBody().strength(chargeStrength))
+        this.simulation = d3.forceSimulation<NodeDatum>(nodes)
+            .force('link', d3.forceLink<NodeDatum, LinkDatum>(links).id(d => d.id).distance(this.settings.linkDistance))
+            .force('charge', d3.forceManyBody().strength(this.settings.chargeStrength))
             .force('center', d3.forceCenter(this.width / 2, this.height / 2));
 
         const link = this.container.append('g')
@@ -141,25 +157,22 @@ export class Visual implements IVisual {
             .data(nodes)
             .enter().append('g')
             .call(d3.drag<SVGGElement, NodeDatum>()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
+                .on('start', (event, d) => this.dragstarted(event, d))
+                .on('drag', (event, d) => this.dragged(event, d))
+                .on('end', (event, d) => this.dragended(event, d)));
 
-        // Aggiungiamo un fattore di scala per ingrandire i nodi
-        const scaleFactor = 2; // Incrementa la dimensione del nodo, puoi regolare il valore
+        const scaleFactor = 2;
         node.append('circle')
-            .attr('r', d => d.size * scaleFactor)  // Ingrandisci i nodi mantenendo la proporzionalità
+            .attr('r', d => d.size * scaleFactor)
             .attr('fill', d => d.color);
 
-        // Aggiunge il testo centrato nel cerchio con contrasto automatico
         node.append('text')
             .attr('text-anchor', 'middle')
             .attr('dominant-baseline', 'middle')
-            .attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12))  // Regola la dimensione del testo
-            .attr('fill', d => this.getContrastColor(d.color))  // Imposta il colore di contrasto
+            .attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12))
+            .attr('fill', d => this.getContrastColor(d.color))
             .text(d => d.id);
 
-        // Aggiunge il testo per i link
         const linkText = this.container.append('g')
             .selectAll('text')
             .data(links)
@@ -168,55 +181,57 @@ export class Visual implements IVisual {
             .attr('text-anchor', 'middle')
             .text(d => d.text);
 
-        simulation.on('tick', () => {
-            link
-                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true))  // Adjusted x1
-                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false)) // Adjusted y1
-                .attr('x2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, true))  // Adjusted x2
-                .attr('y2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, false)); // Adjusted y2
+        this.simulation.on('tick', () => {
+            node.attr('transform', d => `translate(${d.x}, ${d.y})`);
 
-            node
-                .attr('transform', d => `translate(${d.x}, ${d.y})`);
-
-            // Allinea il testo dei link
             linkText
                 .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
                 .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2)
-                .attr('dy', -5) // Sposta il testo un po' sopra la linea
+                .attr('dy', -5)
                 .attr('transform', d => {
                     const x1 = (d.source as NodeDatum).x;
                     const y1 = (d.source as NodeDatum).y;
                     const x2 = (d.target as NodeDatum).x;
                     const y2 = (d.target as NodeDatum).y;
-                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI; // Calcola l'angolo in gradi
-                    return `rotate(${angle}, ${((x1 + x2) / 2)}, ${((y1 + y2) / 2)})`; // Ruota il testo per allinearlo
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                    return `rotate(${angle}, ${((x1 + x2) / 2)}, ${((y1 + y2) / 2)})`;
                 });
+
+            link.each((d, i, nodes) => {
+                const sourceNode = d.source as NodeDatum;
+                const targetNode = d.target as NodeDatum;
+                const dx = targetNode.x - sourceNode.x;
+                const dy = targetNode.y - sourceNode.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const sourceRadius = sourceNode.size * scaleFactor;
+                const targetRadius = targetNode.size * scaleFactor;
+
+                const sourceRatio = sourceRadius / distance;
+                const targetRatio = (distance - targetRadius) / distance;
+
+                d3.select(nodes[i])
+                    .attr('x1', sourceNode.x + dx * sourceRatio)
+                    .attr('y1', sourceNode.y + dy * sourceRatio)
+                    .attr('x2', sourceNode.x + dx * targetRatio)
+                    .attr('y2', sourceNode.y + dy * targetRatio);
+            });
         });
+    }
 
-        // Funzione per evitare che la freccia finisca dentro il cerchio
-        function adjustLinkEnd(source: NodeDatum, target: NodeDatum, isX: boolean): number {
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const ratio = (distance - (source.size * scaleFactor)) / distance;  // Adjust the link based on the node size
-            return isX ? source.x + dx * ratio : source.y + dy * ratio;
-        }
+    private dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        if (!event.active) this.simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
 
-        function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
+    private dragged(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
 
-        function dragged(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-
-        function dragended(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
+    private dragended(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
+        if (!event.active) this.simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
     }
 }
