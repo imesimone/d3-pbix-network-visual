@@ -87,12 +87,24 @@ export class Visual implements IVisual {
                 nodes.push(targetNode);
             }
 
-            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText });
+            links.push({ source: nodeMap.get(source), target: nodeMap.get(target), text: linkText + sourceNodeColor + targetNodeColor });
         });
 
         this.drawNetwork(nodes, links, 100, -200);
     }
 
+    // Calcola il contrasto migliore tra bianco e nero
+    private getContrastColor(hexColor: string): string {
+        // Converti il colore esadecimale in RGB
+        const rgb = parseInt(hexColor.substring(1), 16); // Rimuove il # e converte in numerico
+        const r = (rgb >> 16) & 0xff;
+        const g = (rgb >> 8) & 0xff;
+        const b = rgb & 0xff;
+        // Calcola la luminosità percepita
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        // Se la luminosità è alta, usa il nero come colore del testo, altrimenti bianco
+        return luminance > 128 ? '#000000' : '#ffffff';
+    }
 
     private drawNetwork(nodes: NodeDatum[], links: LinkDatum[], linkDistance: number, chargeStrength: number) {
         this.container.selectAll('*').remove();
@@ -124,28 +136,28 @@ export class Visual implements IVisual {
             .attr('stroke-width', 2)
             .attr('marker-end', 'url(#arrowhead)');
 
-        const node = this.container.append('g').selectAll('g')
-            .data(nodes).enter().append('g')
-            .call(d3.drag<SVGGElement, NodeDatum>().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+        const node = this.container.append('g')
+            .selectAll('g')
+            .data(nodes)
+            .enter().append('g')
+            .call(d3.drag<SVGGElement, NodeDatum>()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
 
         // Aggiungiamo un fattore di scala per ingrandire i nodi
         const scaleFactor = 2; // Incrementa la dimensione del nodo, puoi regolare il valore
-        node.append('circle').attr('r', d => d.size * scaleFactor)  // Ingrandisci i nodi mantenendo la proporzionalità.attr('fill', d => d.color);
+        node.append('circle')
+            .attr('r', d => d.size * scaleFactor)  // Ingrandisci i nodi mantenendo la proporzionalità
+            .attr('fill', d => d.color);
 
         // Aggiunge il testo centrato nel cerchio con contrasto automatico
-        node.append('text').attr('text-anchor', 'middle').attr('dominant-baseline', 'middle').attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12)).attr('fill', d => getContrastColor(d.color)).text(d => d.id);
-        // Calcola il contrasto migliore tra bianco e nero
-        function getContrastColor(hexColor: string): string {
-            // Converti il colore esadecimale in RGB
-            const rgb = parseInt(hexColor.substring(1), 16); // Rimuove il # e converte in numerico
-            const r = (rgb >> 16) & 0xff;
-            const g = (rgb >> 8) & 0xff;
-            const b = rgb & 0xff;
-            // Calcola la luminosità percepita
-            const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-            // Se la luminosità è alta, usa il nero come colore del testo, altrimenti bianco
-            return luminance > 128 ? '#000000' : '#ffffff';
-        }
+        node.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12))  // Regola la dimensione del testo
+            .attr('fill', d => this.getContrastColor(d.color))  // Imposta il colore di contrasto
+            .text(d => d.id);
 
         // Aggiunge il testo per i link
         const linkText = this.container.append('g')
