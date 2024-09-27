@@ -16,13 +16,23 @@
         "kind": "Measure"
       },
       {
-        "displayName": "Node Color",
-        "name": "nodeColor",
+        "displayName": "Source Color",
+        "name": "sourceColor",
         "kind": "Measure"
       },
       {
-        "displayName": "Node Size",
-        "name": "nodeSize",
+        "displayName": "Source Size",
+        "name": "sourceSize",
+        "kind": "Measure"
+      },
+      {
+        "displayName": "Target Color",
+        "name": "targetColor",
+        "kind": "Measure"
+      },
+      {
+        "displayName": "Target Size",
+        "name": "targetSize",
         "kind": "Measure"
       }
     ],
@@ -34,8 +44,10 @@
               { "for": { "in": "source" } },
               { "for": { "in": "target" } },
               { "for": { "in": "linkText" } },
-              { "for": { "in": "nodeColor" } },
-              { "for": { "in": "nodeSize" } }
+              { "for": { "in": "sourceColor" } },
+              { "for": { "in": "sourceSize" } },
+              { "for": { "in": "targetColor" } },
+              { "for": { "in": "targetSize" } }
             ]
           }
         }
