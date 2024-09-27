@@ -1,0 +1,62 @@
+{
+    "dataRoles": [
+      {
+        "displayName": "Source",
+        "name": "source",
+        "kind": "Grouping"
+      },
+      {
+        "displayName": "Target",
+        "name": "target",
+        "kind": "Grouping"
+      },
+      {
+        "displayName": "Link Text",
+        "name": "linkText",
+        "kind": "Measure"
+      },
+      {
+        "displayName": "Node Color",
+        "name": "nodeColor",
+        "kind": "Measure"
+      },
+      {
+        "displayName": "Node Size",
+        "name": "nodeSize",
+        "kind": "Measure"
+      }
+    ],
+    "dataViewMappings": [
+      {
+        "table": {
+          "rows": {
+            "select": [
+              { "for": { "in": "source" } },
+              { "for": { "in": "target" } },
+              { "for": { "in": "linkText" } },
+              { "for": { "in": "nodeColor" } },
+              { "for": { "in": "nodeSize" } }
+            ]
+          }
+        }
+      }
+    ],
+    "privileges": [
+      {
+        "name": "WebAccess",
+        "essential": true
+      }
+    ],
+    "objects": {
+      "general": {
+        "displayName": "General",
+        "properties": {
+          "filter": {
+            "type": {
+              "filter": true
+            }
+          }
+        }
+      }
+    }
+  }

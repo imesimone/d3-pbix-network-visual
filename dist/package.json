@@ -1,0 +1,17 @@
+{
+		"version": "1.0.0.0",
+		"author": {"name":"Your Name","email":"your.email@example.com"},
+		"resources": [
+			{
+				"resourceId": "rId0",
+				"sourceType": 5,
+				"file": "resources/d3NetworkGraph23EC7E7E9122435193E1ED78291D459F.pbiviz.json"
+			}
+		],
+		"visual": {"name":"d3NetworkGraph","displayName":"D3.js Network Graph","guid":"d3NetworkGraph23EC7E7E9122435193E1ED78291D459F","visualClassName":"Visual","version":"1.0.0.0","description":"A network graph visualization using D3.js","supportUrl":"https://example.com/support","gitHubUrl":""},
+		"metadata": {
+			"pbivizjson": {
+				"resourceId": "rId0"
+			}
+		}
+	}
