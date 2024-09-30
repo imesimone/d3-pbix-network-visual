@@ -145,21 +145,18 @@ export class Visual implements IVisual {
                 .on('drag', dragged)
                 .on('end', dragended));
 
-        // Aggiungiamo un fattore di scala per ingrandire i nodi
-        const scaleFactor = 2; // Incrementa la dimensione del nodo, puoi regolare il valore
+        const scaleFactor = 2;
         node.append('circle')
-            .attr('r', d => d.size * scaleFactor)  // Ingrandisci i nodi mantenendo la proporzionalità
+            .attr('r', d => d.size * scaleFactor)
             .attr('fill', d => d.color);
 
-        // Aggiunge il testo centrato nel cerchio con contrasto automatico
         node.append('text')
             .attr('text-anchor', 'middle')
             .attr('dominant-baseline', 'middle')
-            .attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12))  // Regola la dimensione del testo
-            .attr('fill', d => this.getContrastColor(d.color))  // Imposta il colore di contrasto
+            .attr('font-size', d => Math.min((d.size * scaleFactor) / 2, 12))
+            .attr('fill', d => this.getContrastColor(d.color))
             .text(d => d.id);
 
-        // Aggiunge il testo per i link
         const linkText = this.container.append('g')
             .selectAll('text')
             .data(links)
@@ -170,10 +167,10 @@ export class Visual implements IVisual {
 
         simulation.on('tick', () => {
             link
-                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true))  // Adjusted x1
-                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false)) // Adjusted y1
-                .attr('x2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, true))  // Adjusted x2
-                .attr('y2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, false)); // Adjusted y2
+                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true, true))  // Adjusted x1 for source
+                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false, true)) // Adjusted y1 for source
+                .attr('x2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, true, false))  // Adjusted x2 for target
+                .attr('y2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, false, false)); // Adjusted y2 for target
 
             node
                 .attr('transform', d => `translate(${d.x}, ${d.y})`);
@@ -193,13 +190,20 @@ export class Visual implements IVisual {
                 });
         });
 
-        // Funzione per evitare che la freccia finisca dentro il cerchio
-        function adjustLinkEnd(source: NodeDatum, target: NodeDatum, isX: boolean): number {
+        function adjustLinkEnd(source: NodeDatum, target: NodeDatum, isX: boolean, isSource: boolean): number {
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            const ratio = (distance - (source.size * scaleFactor)) / distance;  // Adjust the link based on the node size
-            return isX ? source.x + dx * ratio : source.y + dy * ratio;
+            const sourceOffset = (source.size * scaleFactor + 10); // Offset per il nodo source
+            const targetOffset = (target.size * scaleFactor + 10); // Offset per il nodo target
+
+            if (isSource) {
+                const ratioSource = (distance - sourceOffset) / distance;  // Adjust the link based on source node size
+                return isX ? source.x + dx * ratioSource : source.y + dy * ratioSource; // Restituisce la posizione finale per il nodo source
+            } else {
+                const ratioTarget = (distance - targetOffset) / distance;  // Adjust the link based on target node size
+                return isX ? target.x - dx * (1 - ratioTarget) : target.y - dy * (1 - ratioTarget); // Restituisce la posizione finale per il nodo target
+            }
         }
 
         function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
