@@ -166,16 +166,18 @@ export class Visual implements IVisual {
             .text(d => d.text);
 
         simulation.on('tick', () => {
+            // Aggiorna la posizione dei link
             link
-                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true, true))  // Adjusted x1 for source
-                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false, true)) // Adjusted y1 for source
-                .attr('x2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, true, false))  // Adjusted x2 for target
-                .attr('y2', d => adjustLinkEnd(d.target as NodeDatum, d.source as NodeDatum, false, false)); // Adjusted y2 for target
+                .attr('x1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true, true))
+                .attr('y1', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false, true))
+                .attr('x2', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, true, false))
+                .attr('y2', d => adjustLinkEnd(d.source as NodeDatum, d.target as NodeDatum, false, false));
 
+            // Aggiorna la posizione dei nodi
             node
                 .attr('transform', d => `translate(${d.x}, ${d.y})`);
 
-            // Allinea il testo dei link
+            // Aggiorna la posizione e la rotazione del testo dei link
             linkText
                 .attr('x', d => ((d.source as NodeDatum).x + (d.target as NodeDatum).x) / 2)
                 .attr('y', d => ((d.source as NodeDatum).y + (d.target as NodeDatum).y) / 2)
@@ -185,8 +187,8 @@ export class Visual implements IVisual {
                     const y1 = (d.source as NodeDatum).y;
                     const x2 = (d.target as NodeDatum).x;
                     const y2 = (d.target as NodeDatum).y;
-                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI; // Calcola l'angolo in gradi
-                    return `rotate(${angle}, ${((x1 + x2) / 2)}, ${((y1 + y2) / 2)})`; // Ruota il testo per allinearlo
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                    return `rotate(${angle}, ${((x1 + x2) / 2)}, ${((y1 + y2) / 2)})`;
                 });
         });
 
@@ -194,16 +196,23 @@ export class Visual implements IVisual {
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            const sourceOffset = (source.size * scaleFactor + 10); // Offset per il nodo source
-            const targetOffset = (target.size * scaleFactor + 10); // Offset per il nodo target
+            const sourceRadius = source.size * scaleFactor;
+            const targetRadius = target.size * scaleFactor;
 
-            if (isSource) {
-                const ratioSource = (distance - sourceOffset) / distance;  // Adjust the link based on source node size
-                return isX ? source.x + dx * ratioSource : source.y + dy * ratioSource; // Restituisce la posizione finale per il nodo source
-            } else {
-                const ratioTarget = (distance - targetOffset) / distance;  // Adjust the link based on target node size
-                return isX ? target.x - dx * (1 - ratioTarget) : target.y - dy * (1 - ratioTarget); // Restituisce la posizione finale per il nodo target
-            }
+            // Aggiungiamo un margine extra per il testo
+            const textMargin = 20; // Puoi regolare questo valore in base alle tue esigenze
+
+            const totalMargin = sourceRadius + targetRadius + textMargin;
+            const ratio = isSource
+                ? sourceRadius / distance
+                : 1 - (targetRadius + textMargin) / distance;
+
+            // Assicuriamoci che il link non sia più corto della somma dei raggi più il margine
+            const adjustedRatio = Math.min(ratio, (distance - totalMargin) / distance);
+
+            return isX
+                ? source.x + dx * adjustedRatio
+                : source.y + dy * adjustedRatio;
         }
 
         function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>, d: NodeDatum) {
